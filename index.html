@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Eye State AI - Real-time Detection</title>
   
-  <!-- Tailwind CSS -->
+  <!-- Standalone Native Stylesheet (Guaranteed to load instantly on any domain) -->
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Tailwind CSS Play CDN (Optional Enhancement) -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -36,45 +39,24 @@
   <!-- MediaPipe Face Mesh & Camera Utils CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
-
-  <style>
-    body {
-      font-family: 'Plus Jakarta Sans', 'Sarabun', sans-serif;
-    }
-    .scanner-line {
-      background: linear-gradient(180deg, rgba(99, 102, 241, 0) 0%, rgba(99, 102, 241, 0.7) 100%);
-      animation: scan 2.5s ease-in-out infinite alternate;
-    }
-    @keyframes scan {
-      0% { top: 0%; }
-      100% { top: 90%; }
-    }
-    @keyframes flashAlert {
-      0%, 100% { border-color: rgba(239, 68, 68, 1); box-shadow: 0 0 25px rgba(239, 68, 68, 0.7); }
-      50% { border-color: rgba(239, 68, 68, 0.3); box-shadow: 0 0 5px rgba(239, 68, 68, 0.2); }
-    }
-    .drowsy-active {
-      animation: flashAlert 0.8s ease-in-out infinite;
-    }
-  </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
 
   <!-- Header -->
   <header class="border-b border-slate-800 bg-slate-900/60 backdrop-blur-md sticky top-0 z-50">
-    <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-      <div class="flex items-center space-x-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+    <div class="header-container max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+      <div class="brand flex items-center space-x-3">
+        <div class="brand-icon w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
           <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
           </svg>
         </div>
         <div>
-          <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
-            Eye State AI <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-medium">ONNX Web</span>
+          <h1 class="brand-title text-lg font-bold tracking-tight text-white flex items-center gap-2">
+            Eye State AI <span class="badge-tag text-xs px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-medium">ONNX Web</span>
           </h1>
-          <p class="text-xs text-slate-400">Real-time Eye Open/Closed & Drowsiness Detection</p>
+          <p class="brand-sub text-xs text-slate-400">Real-time Eye Open/Closed & Drowsiness Detection</p>
         </div>
       </div>
 
@@ -92,8 +74,8 @@
   <main class="flex-1 max-w-6xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
 
     <!-- Video Area (Left/Top) -->
-    <div class="lg:col-span-8 flex flex-col space-y-4">
-      <div id="videoContainer" class="relative rounded-2xl overflow-hidden bg-slate-900 border-2 border-slate-800 shadow-2xl aspect-[4/3] flex items-center justify-center transition-all duration-300">
+    <div class="video-wrapper lg:col-span-8 flex flex-col space-y-4">
+      <div id="videoContainer" class="video-container relative rounded-2xl overflow-hidden bg-slate-900 border-2 border-slate-800 shadow-2xl aspect-[4/3] flex items-center justify-center transition-all duration-300">
         
         <!-- Video Stream -->
         <video id="webcam" class="w-full h-full object-cover transform -scale-x-100" playsinline muted autoplay></video>
@@ -114,7 +96,7 @@
 
         <!-- Placeholder when camera is inactive -->
         <div id="placeholder" class="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center text-center p-6 space-y-4">
-          <div class="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center text-slate-400">
+          <div class="placeholder-icon w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center text-slate-400">
             <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
             </svg>
@@ -123,21 +105,21 @@
             <h3 class="text-lg font-semibold text-white">กล้องยังไม่ได้เปิดทำงาน</h3>
             <p class="text-sm text-slate-400 mt-1 max-w-sm">กดปุ่ม "เปิดกล้องเว็บแคม" ด้านล่าง เพื่อเริ่มการตรวจจับดวงตาแบบ Real-time</p>
           </div>
-          <button id="btnStartPrompt" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-medium text-sm text-white shadow-lg shadow-indigo-600/30 transition-all">
+          <button id="btnStartPrompt" class="btn-primary px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-medium text-sm text-white shadow-lg shadow-indigo-600/30 transition-all">
             เปิดกล้องเว็บแคมทันที
           </button>
         </div>
 
         <!-- FPS / Performance Badge -->
-        <div class="absolute bottom-3 left-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-md text-[11px] font-mono text-emerald-400 border border-emerald-500/30 z-10">
+        <div class="fps-badge absolute bottom-3 left-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-md text-[11px] font-mono text-emerald-400 border border-emerald-500/30 z-10">
           FPS: <span id="fpsCounter">0.0</span> | Latency: <span id="latencyCounter">0</span> ms
         </div>
       </div>
 
       <!-- Controls Row -->
-      <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-900/70 p-3 rounded-xl border border-slate-800">
-        <div class="flex items-center gap-2">
-          <button id="btnToggleCamera" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 font-medium text-sm text-white transition-all flex items-center gap-2 shadow-sm">
+      <div class="controls-bar flex flex-wrap items-center justify-between gap-3 bg-slate-900/70 p-3 rounded-xl border border-slate-800">
+        <div class="controls-group flex items-center gap-2">
+          <button id="btnToggleCamera" class="btn-primary px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 font-medium text-sm text-white transition-all flex items-center gap-2 shadow-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -145,17 +127,17 @@
             <span id="btnCameraText">เปิดกล้อง</span>
           </button>
 
-          <button id="btnFlip" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium transition-all" title="สลับมุมมองกระจก">
+          <button id="btnFlip" class="btn-secondary px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium transition-all" title="สลับมุมมองกระจก">
             🪞 กลับด้านภาพ
           </button>
 
-          <button id="btnMute" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium transition-all" title="เปิด/ปิดเสียงเตือน">
+          <button id="btnMute" class="btn-secondary px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium transition-all" title="เปิด/ปิดเสียงเตือน">
             🔔 เสียงเตือน: <span id="muteStatus">เปิด</span>
           </button>
         </div>
 
         <!-- Test Image Upload -->
-        <label class="cursor-pointer px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium transition-all flex items-center gap-2">
+        <label class="btn-secondary upload-btn cursor-pointer px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium transition-all flex items-center gap-2">
           <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
@@ -166,14 +148,14 @@
     </div>
 
     <!-- Right Side: Analytics, Eye Crops & Metrics -->
-    <div class="lg:col-span-4 flex flex-col space-y-4">
+    <div class="analytics-wrapper lg:col-span-4 flex flex-col space-y-4">
 
       <!-- Overall Status Card -->
-      <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-lg">
-        <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">สถานะภาพรวม (Overall State)</h2>
-        <div id="overallBadge" class="p-4 rounded-xl bg-slate-800/80 border border-slate-700/60 flex items-center justify-between">
+      <div class="card bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-lg">
+        <h2 class="card-title text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">สถานะภาพรวม (Overall State)</h2>
+        <div id="overallBadge" class="status-badge p-4 rounded-xl bg-slate-800/80 border border-slate-700/60 flex items-center justify-between">
           <div class="flex items-center gap-3">
-            <div id="stateDot" class="w-4 h-4 rounded-full bg-slate-600"></div>
+            <div id="stateDot" class="dot w-4 h-4 rounded-full bg-slate-600"></div>
             <div>
               <div id="stateLabel" class="text-xl font-bold text-white tracking-wide">รอตรวจจับ...</div>
               <div id="stateSub" class="text-xs text-slate-400 mt-0.5">มองตรงไปที่กล้อง</div>
@@ -187,23 +169,23 @@
       </div>
 
       <!-- Real-time Eye Crops Preview -->
-      <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-lg">
-        <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">ภาพ Crop ดวงตา (64x64)</h2>
-        <div class="grid grid-cols-2 gap-3">
+      <div class="card bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-lg">
+        <h2 class="card-title text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">ภาพ Crop ดวงตา (64x64)</h2>
+        <div class="crops-grid grid grid-cols-2 gap-3">
           
           <!-- Right Eye (User's Right) -->
-          <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 flex flex-col items-center">
+          <div class="crop-card bg-slate-950 p-3 rounded-xl border border-slate-800 flex flex-col items-center">
             <div class="text-xs text-slate-400 mb-2 font-medium">ตาขวา (Right Eye)</div>
-            <div class="w-16 h-16 rounded-lg overflow-hidden bg-slate-900 border border-slate-700 flex items-center justify-center relative">
+            <div class="crop-canvas-box w-16 h-16 rounded-lg overflow-hidden bg-slate-900 border border-slate-700 flex items-center justify-center relative">
               <canvas id="cropRightCanvas" width="64" height="64" class="w-full h-full object-cover"></canvas>
             </div>
             <div id="labelRight" class="mt-2 text-xs font-bold text-slate-400">-</div>
           </div>
 
           <!-- Left Eye (User's Left) -->
-          <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 flex flex-col items-center">
+          <div class="crop-card bg-slate-950 p-3 rounded-xl border border-slate-800 flex flex-col items-center">
             <div class="text-xs text-slate-400 mb-2 font-medium">ตาซ้าย (Left Eye)</div>
-            <div class="w-16 h-16 rounded-lg overflow-hidden bg-slate-900 border border-slate-700 flex items-center justify-center relative">
+            <div class="crop-canvas-box w-16 h-16 rounded-lg overflow-hidden bg-slate-900 border border-slate-700 flex items-center justify-center relative">
               <canvas id="cropLeftCanvas" width="64" height="64" class="w-full h-full object-cover"></canvas>
             </div>
             <div id="labelLeft" class="mt-2 text-xs font-bold text-slate-400">-</div>
@@ -212,49 +194,51 @@
       </div>
 
       <!-- Probability Bars -->
-      <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-lg space-y-4">
-        <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider">เปอร์เซ็นต์ความน่าจะเป็น</h2>
+      <div class="card bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-lg space-y-4">
+        <h2 class="card-title text-sm font-semibold text-slate-400 uppercase tracking-wider">เปอร์เซ็นต์ความน่าจะเป็น</h2>
         
-        <!-- Open Bar -->
-        <div>
-          <div class="flex justify-between text-xs font-medium mb-1.5">
-            <span class="text-emerald-400 font-semibold">ลืมตา (Open)</span>
-            <span id="probOpenText" class="text-slate-300 font-mono">0.0%</span>
+        <div class="progress-container">
+          <!-- Open Bar -->
+          <div class="progress-row">
+            <div class="progress-header flex justify-between text-xs font-medium mb-1.5">
+              <span class="text-emerald-400 font-semibold" style="color: #34d399;">ลืมตา (Open)</span>
+              <span id="probOpenText" class="text-slate-300 font-mono">0.0%</span>
+            </div>
+            <div class="progress-bar-bg w-full h-2.5 bg-slate-800 rounded-full overflow-hidden">
+              <div id="probOpenBar" class="progress-bar-fill fill-emerald h-full bg-emerald-500 rounded-full transition-all duration-150" style="width: 0%"></div>
+            </div>
           </div>
-          <div class="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden">
-            <div id="probOpenBar" class="h-full bg-emerald-500 rounded-full transition-all duration-150" style="width: 0%"></div>
-          </div>
-        </div>
 
-        <!-- Closed Bar -->
-        <div>
-          <div class="flex justify-between text-xs font-medium mb-1.5">
-            <span class="text-rose-400 font-semibold">หลับตา (Closed)</span>
-            <span id="probClosedText" class="text-slate-300 font-mono">0.0%</span>
-          </div>
-          <div class="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden">
-            <div id="probClosedBar" class="h-full bg-rose-500 rounded-full transition-all duration-150" style="width: 0%"></div>
+          <!-- Closed Bar -->
+          <div class="progress-row">
+            <div class="progress-header flex justify-between text-xs font-medium mb-1.5">
+              <span class="text-rose-400 font-semibold" style="color: #fb7185;">หลับตา (Closed)</span>
+              <span id="probClosedText" class="text-slate-300 font-mono">0.0%</span>
+            </div>
+            <div class="progress-bar-bg w-full h-2.5 bg-slate-800 rounded-full overflow-hidden">
+              <div id="probClosedBar" class="progress-bar-fill fill-rose h-full bg-rose-500 rounded-full transition-all duration-150" style="width: 0%"></div>
+            </div>
           </div>
         </div>
       </div>
 
       <!-- System Architecture Info -->
-      <div class="p-4 rounded-xl bg-slate-900/40 border border-slate-800/80 text-xs text-slate-400 space-y-1.5">
-        <div class="flex justify-between">
+      <div class="card p-4 rounded-xl bg-slate-900/40 border border-slate-800/80 text-xs text-slate-400 space-y-1.5" style="display: flex; flex-direction: column; gap: 0.5rem;">
+        <div style="display: flex; justify-content: space-between;">
           <span>AI Model:</span>
-          <span class="text-slate-200 font-medium">EyeCNN (PyTorch & ONNX)</span>
+          <span style="color: #e2e8f0; font-weight: 500;">EyeCNN (PyTorch & ONNX)</span>
         </div>
-        <div class="flex justify-between">
+        <div style="display: flex; justify-content: space-between;">
           <span>Model Size:</span>
-          <span class="text-slate-200 font-medium">1.42 MB</span>
+          <span style="color: #e2e8f0; font-weight: 500;">1.42 MB</span>
         </div>
-        <div class="flex justify-between">
+        <div style="display: flex; justify-content: space-between;">
           <span>Inference Engine:</span>
-          <span class="text-indigo-400 font-medium">ONNX Runtime Web (WASM)</span>
+          <span style="color: #818cf8; font-weight: 500;">ONNX Runtime Web (WASM)</span>
         </div>
-        <div class="flex justify-between">
+        <div style="display: flex; justify-content: space-between;">
           <span>Landmarks:</span>
-          <span class="text-slate-200 font-medium">MediaPipe Face Mesh</span>
+          <span style="color: #e2e8f0; font-weight: 500;">MediaPipe Face Mesh</span>
         </div>
       </div>
 
