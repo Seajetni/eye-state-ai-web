@@ -273,24 +273,44 @@ async function onResults(results) {
   const confL = (isClosedL ? probsL[0] : probsL[1]) * 100;
 
   labelRight.textContent = `${isClosedR ? 'Closed' : 'Open'} (${confR.toFixed(0)}%)`;
-  labelRight.className = `mt-2 text-xs font-bold ${isClosedR ? 'text-rose-400' : 'text-emerald-400'}`;
+  labelRight.style.color = isClosedR ? '#fb7185' : '#34d399';
 
   labelLeft.textContent = `${isClosedL ? 'Closed' : 'Open'} (${confL.toFixed(0)}%)`;
-  labelLeft.className = `mt-2 text-xs font-bold ${isClosedL ? 'text-rose-400' : 'text-emerald-400'}`;
+  labelLeft.style.color = isClosedL ? '#fb7185' : '#34d399';
 
   // Draw Boxes on Overlay Canvas
   function drawBox(box, isClosed, label, conf) {
-    overlayCtx.lineWidth = 3;
+    overlayCtx.lineWidth = 2.5;
     overlayCtx.strokeStyle = isClosed ? '#f43f5e' : '#10b981';
-    overlayCtx.strokeRect(box.x, box.y, box.size, box.size);
 
-    // Label tag
-    overlayCtx.fillStyle = isClosed ? 'rgba(244, 63, 94, 0.9)' : 'rgba(16, 185, 129, 0.9)';
-    overlayCtx.fillRect(box.x, Math.max(0, box.y - 24), 90, 22);
+    const x = box.x;
+    const y = box.y;
+    const s = box.size;
 
-    overlayCtx.font = 'bold 12px sans-serif';
+    overlayCtx.beginPath();
+    if (overlayCtx.roundRect) {
+      overlayCtx.roundRect(x, y, s, s, 8);
+    } else {
+      overlayCtx.strokeRect(x, y, s, s);
+    }
+    overlayCtx.stroke();
+
+    // Sleek Tag Pill
+    const tagW = 94;
+    const tagH = 22;
+    const tagY = Math.max(4, y - 26);
+    overlayCtx.fillStyle = isClosed ? 'rgba(225, 29, 72, 0.9)' : 'rgba(16, 185, 129, 0.9)';
+    overlayCtx.beginPath();
+    if (overlayCtx.roundRect) {
+      overlayCtx.roundRect(x, tagY, tagW, tagH, 6);
+    } else {
+      overlayCtx.fillRect(x, tagY, tagW, tagH);
+    }
+    overlayCtx.fill();
+
+    overlayCtx.font = 'bold 11px monospace';
     overlayCtx.fillStyle = '#ffffff';
-    overlayCtx.fillText(`${label} ${conf.toFixed(0)}%`, box.x + 6, Math.max(16, box.y - 8));
+    overlayCtx.fillText(`${label.toUpperCase()} ${conf.toFixed(0)}%`, x + 8, tagY + 15);
   }
 
   drawBox(boxR, isClosedR, isClosedR ? 'Closed' : 'Open', confR);
@@ -311,11 +331,13 @@ async function onResults(results) {
   if (bothClosed) {
     stateLabel.textContent = "หลับตา (CLOSED)";
     stateSub.textContent = "ตรวจพบดวงตาปิดทั้งสองข้าง";
-    stateLabel.className = "text-xl font-bold text-rose-400 tracking-wide";
-    stateDot.className = "w-4 h-4 rounded-full bg-rose-500 shadow-lg shadow-rose-500/50";
+    stateLabel.style.color = "#fb7185";
+    stateDot.style.background = "#f43f5e";
+    stateDot.style.boxShadow = "0 0 14px rgba(244, 63, 94, 0.8)";
     confidenceVal.textContent = `${(avgClosedProb * 100).toFixed(0)}%`;
-    confidenceVal.className = "text-2xl font-black font-mono text-rose-400";
-    overallBadge.className = "p-4 rounded-xl bg-rose-950/40 border border-rose-500/50 flex items-center justify-between";
+    confidenceVal.style.color = "#fb7185";
+    overallBadge.style.borderColor = "rgba(244, 63, 94, 0.4)";
+    overallBadge.style.background = "rgba(225, 29, 72, 0.12)";
 
     // Drowsiness Timer Check
     if (closedStartTime === null) {
@@ -336,11 +358,13 @@ async function onResults(results) {
 
     stateLabel.textContent = "ลืมตา (OPEN)";
     stateSub.textContent = "ระบบตรวจจับสถานะดวงตาปกติ";
-    stateLabel.className = "text-xl font-bold text-emerald-400 tracking-wide";
-    stateDot.className = "w-4 h-4 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/50";
+    stateLabel.style.color = "#34d399";
+    stateDot.style.background = "#10b981";
+    stateDot.style.boxShadow = "0 0 14px rgba(16, 185, 129, 0.8)";
     confidenceVal.textContent = `${(avgOpenProb * 100).toFixed(0)}%`;
-    confidenceVal.className = "text-2xl font-black font-mono text-emerald-400";
-    overallBadge.className = "p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/50 flex items-center justify-between";
+    confidenceVal.style.color = "#34d399";
+    overallBadge.style.borderColor = "rgba(16, 185, 129, 0.4)";
+    overallBadge.style.background = "rgba(16, 185, 129, 0.12)";
   }
 }
 
@@ -364,8 +388,7 @@ async function startCamera() {
     await camera.start();
     isRunning = true;
     btnCameraText.textContent = "ปิดกล้อง";
-    btnToggleCamera.classList.replace("bg-indigo-600", "bg-rose-600");
-    btnToggleCamera.classList.replace("hover:bg-indigo-500", "hover:bg-rose-500");
+    btnToggleCamera.classList.add("btn-danger");
     console.log("[Info] Camera started successfully.");
   } catch (err) {
     console.error("[Error] Failed to access webcam:", err);
@@ -383,13 +406,16 @@ function stopCamera() {
   isRunning = false;
   placeholder.classList.remove("hidden");
   btnCameraText.textContent = "เปิดกล้อง";
-  btnToggleCamera.classList.replace("bg-rose-600", "bg-indigo-600");
-  btnToggleCamera.classList.replace("hover:bg-rose-500", "hover:bg-indigo-500");
+  btnToggleCamera.classList.remove("btn-danger");
   overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
   drowsyAlert.classList.add("hidden");
   videoContainer.classList.remove("drowsy-active");
   stateLabel.textContent = "กล้องปิดอยู่";
-  stateDot.className = "w-4 h-4 rounded-full bg-slate-600";
+  stateLabel.style.color = "#94a3b8";
+  stateDot.style.background = "#475569";
+  stateDot.style.boxShadow = "none";
+  overallBadge.style.borderColor = "rgba(255, 255, 255, 0.06)";
+  overallBadge.style.background = "rgba(15, 23, 42, 0.75)";
 }
 
 // 7. Event Listeners
