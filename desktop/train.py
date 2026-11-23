@@ -77,7 +77,13 @@ def train():
                         help="Number of epochs to train (default: 10)")
     args = parser.parse_args()
 
-    project_dir = Path("D:/AI_CNN")
+    project_dir = Path(__file__).resolve().parent.parent
+    desktop_dir = Path(__file__).resolve().parent
+    models_dir = desktop_dir / "models"
+    models_dir.mkdir(parents=True, exist_ok=True)
+    web_models_dir = project_dir / "assets" / "models"
+    web_models_dir.mkdir(parents=True, exist_ok=True)
+
     data_dir = project_dir / args.dataset
         
     print(f"[Dataset] Using Kaggle data from: {data_dir.resolve()}")
@@ -126,8 +132,9 @@ def train():
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs, eta_min=1e-5)
 
     best_val_acc = 0.0
-    best_weights_path = project_dir / "best_model.pth"
-    onnx_path = project_dir / "eye_cnn.onnx"
+    best_weights_path = models_dir / "best_model.pth"
+    onnx_path = models_dir / "eye_cnn.onnx"
+    web_onnx_path = web_models_dir / "eye_cnn.onnx"
 
     print("\n" + "="*60)
     print(f"Starting CNN Training for {num_epochs} Epochs...")
@@ -202,6 +209,9 @@ def train():
     # Load best weights before ONNX export
     model.load_state_dict(torch.load(best_weights_path, map_location="cpu"))
     export_to_onnx(model, str(onnx_path))
+    import shutil
+    shutil.copyfile(str(onnx_path), str(web_onnx_path))
+    print(f"[ONNX] Synced to web assets: {web_onnx_path.resolve()}")
 
     print(f"\n[Completed] Everything done! ONNX model ready at: {onnx_path.resolve()}")
 

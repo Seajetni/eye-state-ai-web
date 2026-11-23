@@ -27,8 +27,15 @@ def softmax(x):
     e_x = np.exp(x - np.max(x, axis=1, keepdims=True))
     return e_x / e_x.sum(axis=1, keepdims=True)
 
-def predict(image_path, model_path="D:/AI_CNN/eye_cnn.onnx"):
-    model_path = Path(model_path)
+def predict(image_path, model_path=None):
+    if model_path is None:
+        models_dir = Path(__file__).parent / "models"
+        model_path = models_dir / "eye_cnn.onnx"
+        if not model_path.exists():
+            model_path = Path(__file__).parent.parent / "assets" / "models" / "eye_cnn.onnx"
+    else:
+        model_path = Path(model_path)
+
     if not model_path.exists():
         raise FileNotFoundError(f"Model file not found: {model_path}")
     
@@ -62,7 +69,8 @@ if __name__ == "__main__":
         img_path = sys.argv[1]
     else:
         # Test on validation sample if no argument provided
-        val_samples = list(Path("D:/AI_CNN/dataset/val").rglob("*.jpg"))
+        dataset_val = Path(__file__).parent.parent / "dataset" / "val"
+        val_samples = list(dataset_val.rglob("*.jpg")) if dataset_val.exists() else []
         if val_samples:
             img_path = str(val_samples[0])
             print(f"[Info] No image provided. Using sample: {img_path}")

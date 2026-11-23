@@ -1,7 +1,4 @@
-requirements*.txt
-*.py
-*.xml
-yunet.onnx
-best_model.pth
+desktop/
 dataset/
+*.pth
 __pycache__/

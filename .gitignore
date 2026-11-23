@@ -1,5 +1,5 @@
 dataset/
 __pycache__/
 *.pth
-.git/
+desktop/models/*.pth
 .vscode/

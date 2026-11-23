@@ -100,7 +100,7 @@ async function initONNX() {
     ort.env.wasm.simd = true;
 
     // Load eye_cnn.onnx
-    const modelPath = './eye_cnn.onnx';
+    const modelPath = './assets/models/eye_cnn.onnx';
     ortSession = await ort.InferenceSession.create(modelPath, {
       executionProviders: ['wasm']
     });

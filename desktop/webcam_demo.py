@@ -67,14 +67,24 @@ def main():
     camera_source = normalize_camera_source(raw_source)
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    model_path = os.path.join(script_dir, args.model_file) if not os.path.isabs(args.model_file) else args.model_file
+    models_dir = os.path.join(script_dir, "models")
+
+    # Locate Eye CNN ONNX model
+    if not os.path.isabs(args.model_file):
+        model_path = os.path.join(models_dir, args.model_file)
+        if not os.path.exists(model_path):
+            model_path = os.path.join(script_dir, args.model_file)
+    else:
+        model_path = args.model_file
 
     print(f"[Info] Loading Eye CNN ONNX model from {model_path} ...")
     session = ort.InferenceSession(model_path, providers=["CPUExecutionProvider"])
     input_name = session.get_inputs()[0].name
 
     # Check for YuNet DNN face and landmark detector
-    yunet_path = os.path.join(script_dir, "yunet.onnx")
+    yunet_path = os.path.join(models_dir, "yunet.onnx")
+    if not os.path.exists(yunet_path):
+        yunet_path = os.path.join(script_dir, "yunet.onnx")
     use_yunet = hasattr(cv2, "FaceDetectorYN") and os.path.exists(yunet_path)
 
     detector_yunet = None
@@ -87,7 +97,9 @@ def main():
         )
     else:
         print("[Info] YuNet not available, falling back to Haar Cascade face detector.")
-        face_xml = os.path.join(script_dir, "haarcascade_frontalface_default.xml")
+        face_xml = os.path.join(models_dir, "haarcascade_frontalface_default.xml")
+        if not os.path.exists(face_xml):
+            face_xml = os.path.join(script_dir, "haarcascade_frontalface_default.xml")
         face_cascade = cv2.CascadeClassifier(face_xml)
         if face_cascade.empty():
             raise RuntimeError(f"[Error] Failed to load face cascade from '{face_xml}'")
