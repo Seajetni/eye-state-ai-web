@@ -1,0 +1,7 @@
+requirements*.txt
+*.py
+*.xml
+yunet.onnx
+best_model.pth
+dataset/
+__pycache__/
