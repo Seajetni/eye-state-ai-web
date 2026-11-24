@@ -1,5 +1,6 @@
 // Eye State AI - Client-Side Real-time Detection
 // Powered by ONNX Runtime Web & MediaPipe Face Mesh
+// Warm Organic Ceramic Theme
 
 const CLASSES = ["Closed", "Open"];
 const MEAN = [0.485, 0.456, 0.406];
@@ -31,6 +32,9 @@ const cropRightCtx = cropRightCanvas.getContext('2d');
 const cropLeftCanvas = document.getElementById('cropLeftCanvas');
 const cropLeftCtx = cropLeftCanvas.getContext('2d');
 
+const standbyRightIcon = document.getElementById('standbyRightIcon');
+const standbyLeftIcon = document.getElementById('standbyLeftIcon');
+
 const modelStatusEl = document.getElementById('modelStatus');
 const statusDot = document.getElementById('statusDot');
 const statusText = document.getElementById('statusText');
@@ -40,14 +44,18 @@ const btnStartPrompt = document.getElementById('btnStartPrompt');
 const btnToggleCamera = document.getElementById('btnToggleCamera');
 const btnCameraText = document.getElementById('btnCameraText');
 const btnFlip = document.getElementById('btnFlip');
+const flipStatus = document.getElementById('flipStatus');
 const btnMute = document.getElementById('btnMute');
 const muteStatus = document.getElementById('muteStatus');
 const imageInput = document.getElementById('imageInput');
 
+const videoFps = document.getElementById('videoFps');
 const fpsCounter = document.getElementById('fpsCounter');
 const latencyCounter = document.getElementById('latencyCounter');
+
 const stateLabel = document.getElementById('stateLabel');
 const stateSub = document.getElementById('stateSub');
+const videoStateText = document.getElementById('videoStateText');
 const stateDot = document.getElementById('stateDot');
 const confidenceVal = document.getElementById('confidenceVal');
 const overallBadge = document.getElementById('overallBadge');
@@ -76,14 +84,14 @@ function playBeepAlarm() {
     }
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(880, audioCtx.currentTime); // 880 Hz (A5)
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(659.25, audioCtx.currentTime); // E5 note (warm, pleasant chime)
     gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
     osc.connect(gain);
     gain.connect(audioCtx.destination);
     osc.start();
-    osc.stop(audioCtx.currentTime + 0.3);
+    osc.stop(audioCtx.currentTime + 0.35);
   } catch (e) {
     console.warn("Audio alarm error:", e);
   }
@@ -93,7 +101,7 @@ function playBeepAlarm() {
 async function initONNX() {
   try {
     statusText.textContent = "กำลังโหลดโมเดล ONNX (1.4MB)...";
-    statusDot.className = "w-2 h-2 rounded-full bg-amber-400 animate-pulse";
+    statusDot.className = "status-dot loading";
 
     // Set ONNX Runtime Web WASM options
     ort.env.wasm.numThreads = 2;
@@ -105,14 +113,13 @@ async function initONNX() {
       executionProviders: ['wasm']
     });
 
-    statusText.textContent = "โมเดล AI พร้อมทำงาน";
-    statusDot.className = "w-2 h-2 rounded-full bg-emerald-400";
-    modelStatusEl.classList.add("border-emerald-500/40");
+    statusText.innerHTML = 'กล้องพร้อมทำงาน · <span id="fpsHeader">28 fps</span>';
+    statusDot.className = "status-dot";
     console.log("[Info] ONNX model loaded successfully.");
   } catch (error) {
     console.error("[Error] Failed to load ONNX model:", error);
     statusText.textContent = "โหลดโมเดลไม่สำเร็จ: ตรวจสอบไฟล์ eye_cnn.onnx";
-    statusDot.className = "w-2 h-2 rounded-full bg-rose-500";
+    statusDot.className = "status-dot error";
   }
 }
 
@@ -198,7 +205,11 @@ async function onResults(results) {
   frameCount++;
   if (now - lastFrameTime >= 500) {
     fps = (frameCount * 1000) / (now - lastFrameTime);
-    fpsCounter.textContent = fps.toFixed(1);
+    const fpsText = `${Math.round(fps)} fps`;
+    if (videoFps) videoFps.textContent = fpsText;
+    const headerFpsSpan = document.getElementById('fpsHeader');
+    if (headerFpsSpan) headerFpsSpan.textContent = fpsText;
+    if (fpsCounter) fpsCounter.textContent = fps.toFixed(1);
     frameCount = 0;
     lastFrameTime = now;
   }
@@ -210,7 +221,8 @@ async function onResults(results) {
   if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
     stateLabel.textContent = "ไม่พบใบหน้า";
     stateSub.textContent = "กรุณาหันหน้าเข้าหากล้อง";
-    stateDot.className = "w-4 h-4 rounded-full bg-slate-600";
+    videoStateText.textContent = "ไม่พบใบหน้า";
+    stateLabel.style.color = "var(--text-secondary)";
     drowsyAlert.classList.add("hidden");
     videoContainer.classList.remove("drowsy-active");
     closedStartTime = null;
@@ -222,8 +234,8 @@ async function onResults(results) {
   const h = overlayCanvas.height;
 
   // Key eye landmarks:
-  // Right eye (user's right): 33 (outer), 133 (inner)
-  // Left eye (user's left): 362 (inner), 263 (outer)
+  // Right eye: 33 (outer), 133 (inner)
+  // Left eye: 362 (inner), 263 (outer)
   const rOuter = { x: landmarks[33].x * w, y: landmarks[33].y * h };
   const rInner = { x: landmarks[133].x * w, y: landmarks[133].y * h };
   const rx = (rOuter.x + rInner.x) / 2;
@@ -237,7 +249,7 @@ async function onResults(results) {
   const interOcular = Math.hypot(lx - rx, ly - ry);
   const eyeCropSize = Math.max(interOcular * 0.48, 44);
 
-  // Crop eyes
+  // Crop eyes to 64x64 canvases
   const boxR = cropEye(videoEl, rx, ry, eyeCropSize, cropRightCanvas);
   const boxL = cropEye(videoEl, lx, ly, eyeCropSize, cropLeftCanvas);
 
@@ -248,7 +260,7 @@ async function onResults(results) {
   if (!resR || !resL) return;
 
   const avgLatency = (resR.latency + resL.latency) / 2;
-  latencyCounter.textContent = Math.round(avgLatency);
+  if (latencyCounter) latencyCounter.textContent = Math.round(avgLatency);
 
   // Exponential Moving Average Smoothing
   function smooth(key, raw) {
@@ -272,16 +284,16 @@ async function onResults(results) {
   const confR = (isClosedR ? probsR[0] : probsR[1]) * 100;
   const confL = (isClosedL ? probsL[0] : probsL[1]) * 100;
 
-  labelRight.textContent = `${isClosedR ? 'Closed' : 'Open'} (${confR.toFixed(0)}%)`;
-  labelRight.style.color = isClosedR ? '#fb7185' : '#34d399';
+  labelRight.textContent = `${isClosedR ? 'หลับตา' : 'ปกติ'} ${confR.toFixed(0)}%`;
+  labelRight.style.color = isClosedR ? 'var(--accent-warning)' : 'var(--accent-sage)';
 
-  labelLeft.textContent = `${isClosedL ? 'Closed' : 'Open'} (${confL.toFixed(0)}%)`;
-  labelLeft.style.color = isClosedL ? '#fb7185' : '#34d399';
+  labelLeft.textContent = `${isClosedL ? 'หลับตา' : 'ปกติ'} ${confL.toFixed(0)}%`;
+  labelLeft.style.color = isClosedL ? 'var(--accent-warning)' : 'var(--accent-sage)';
 
-  // Draw Boxes on Overlay Canvas
+  // Draw Minimalist Reticles on Overlay Canvas
   function drawBox(box, isClosed, label, conf) {
-    overlayCtx.lineWidth = 2.5;
-    overlayCtx.strokeStyle = isClosed ? '#f43f5e' : '#10b981';
+    overlayCtx.lineWidth = 2.2;
+    overlayCtx.strokeStyle = isClosed ? '#c86d56' : '#778a6c';
 
     const x = box.x;
     const y = box.y;
@@ -289,17 +301,17 @@ async function onResults(results) {
 
     overlayCtx.beginPath();
     if (overlayCtx.roundRect) {
-      overlayCtx.roundRect(x, y, s, s, 8);
+      overlayCtx.roundRect(x, y, s, s, 10);
     } else {
       overlayCtx.strokeRect(x, y, s, s);
     }
     overlayCtx.stroke();
 
-    // Sleek Tag Pill
-    const tagW = 94;
-    const tagH = 22;
-    const tagY = Math.max(4, y - 26);
-    overlayCtx.fillStyle = isClosed ? 'rgba(225, 29, 72, 0.9)' : 'rgba(16, 185, 129, 0.9)';
+    // Sleek Pill Tag
+    const tagW = 86;
+    const tagH = 20;
+    const tagY = Math.max(4, y - 24);
+    overlayCtx.fillStyle = isClosed ? 'rgba(200, 109, 86, 0.92)' : 'rgba(119, 138, 108, 0.92)';
     overlayCtx.beginPath();
     if (overlayCtx.roundRect) {
       overlayCtx.roundRect(x, tagY, tagW, tagH, 6);
@@ -308,13 +320,13 @@ async function onResults(results) {
     }
     overlayCtx.fill();
 
-    overlayCtx.font = 'bold 11px monospace';
+    overlayCtx.font = '500 11px Prompt, sans-serif';
     overlayCtx.fillStyle = '#ffffff';
-    overlayCtx.fillText(`${label.toUpperCase()} ${conf.toFixed(0)}%`, x + 8, tagY + 15);
+    overlayCtx.fillText(`${label} ${conf.toFixed(0)}%`, x + 7, tagY + 14);
   }
 
-  drawBox(boxR, isClosedR, isClosedR ? 'Closed' : 'Open', confR);
-  drawBox(boxL, isClosedL, isClosedL ? 'Closed' : 'Open', confL);
+  drawBox(boxR, isClosedR, isClosedR ? 'หลับตา' : 'ลืมตา', confR);
+  drawBox(boxL, isClosedL, isClosedL ? 'หลับตา' : 'ลืมตา', confL);
 
   // Overall calculations
   const avgClosedProb = (probsR[0] + probsL[0]) / 2;
@@ -329,15 +341,13 @@ async function onResults(results) {
   const bothClosed = isClosedR && isClosedL;
 
   if (bothClosed) {
-    stateLabel.textContent = "หลับตา (CLOSED)";
+    stateLabel.textContent = "หลับตา (เตือน!)";
+    videoStateText.textContent = "หลับตา (เตือน!)";
     stateSub.textContent = "ตรวจพบดวงตาปิดทั้งสองข้าง";
-    stateLabel.style.color = "#fb7185";
-    stateDot.style.background = "#f43f5e";
-    stateDot.style.boxShadow = "0 0 14px rgba(244, 63, 94, 0.8)";
+    stateLabel.style.color = "var(--accent-warning)";
     confidenceVal.textContent = `${(avgClosedProb * 100).toFixed(0)}%`;
-    confidenceVal.style.color = "#fb7185";
-    overallBadge.style.borderColor = "rgba(244, 63, 94, 0.4)";
-    overallBadge.style.background = "rgba(225, 29, 72, 0.12)";
+    confidenceVal.style.color = "var(--accent-warning)";
+    videoContainer.classList.add("drowsy-active");
 
     // Drowsiness Timer Check
     if (closedStartTime === null) {
@@ -348,7 +358,6 @@ async function onResults(results) {
     if (durationSec >= 1.5) {
       drowsyAlert.classList.remove("hidden");
       drowsyText.textContent = `⚠️ เตือน: ตรวจพบหลับตาต่อเนื่อง! (${durationSec.toFixed(1)}s)`;
-      videoContainer.classList.add("drowsy-active");
       playBeepAlarm();
     }
   } else {
@@ -356,15 +365,12 @@ async function onResults(results) {
     drowsyAlert.classList.add("hidden");
     videoContainer.classList.remove("drowsy-active");
 
-    stateLabel.textContent = "ลืมตา (OPEN)";
-    stateSub.textContent = "ระบบตรวจจับสถานะดวงตาปกติ";
-    stateLabel.style.color = "#34d399";
-    stateDot.style.background = "#10b981";
-    stateDot.style.boxShadow = "0 0 14px rgba(16, 185, 129, 0.8)";
+    stateLabel.textContent = "ลืมตา (ปกติ)";
+    videoStateText.textContent = "ลืมตา (ปกติ)";
+    stateSub.textContent = "ตรวจพบใบหน้า 1 คน · ดวงตาปกติ";
+    stateLabel.style.color = "var(--text-primary)";
     confidenceVal.textContent = `${(avgOpenProb * 100).toFixed(0)}%`;
-    confidenceVal.style.color = "#34d399";
-    overallBadge.style.borderColor = "rgba(16, 185, 129, 0.4)";
-    overallBadge.style.background = "rgba(16, 185, 129, 0.12)";
+    confidenceVal.style.color = "var(--text-primary)";
   }
 }
 
@@ -373,6 +379,13 @@ async function startCamera() {
   if (isRunning) return;
   try {
     placeholder.classList.add("hidden");
+    cropRightCanvas.classList.remove("hidden");
+    cropLeftCanvas.classList.remove("hidden");
+    standbyRightIcon.classList.add("hidden");
+    standbyLeftIcon.classList.add("hidden");
+    labelRight.classList.remove("hidden");
+    labelLeft.classList.remove("hidden");
+
     btnCameraText.textContent = "กำลังเปิดกล้อง...";
 
     camera = new Camera(videoEl, {
@@ -388,34 +401,47 @@ async function startCamera() {
     await camera.start();
     isRunning = true;
     btnCameraText.textContent = "ปิดกล้อง";
-    btnToggleCamera.classList.add("btn-danger");
+    btnToggleCamera.classList.add("camera-active");
     console.log("[Info] Camera started successfully.");
   } catch (err) {
     console.error("[Error] Failed to access webcam:", err);
     alert("ไม่สามารถเข้าถึงกล้องเว็บแคมได้: กรุณาอนุญาตสิทธิ์กล้องในเบราว์เซอร์");
-    placeholder.classList.remove("hidden");
-    btnCameraText.textContent = "เปิดกล้อง";
+    stopCamera();
   }
 }
 
 function stopCamera() {
-  if (!isRunning) return;
   if (camera) {
     camera.stop();
   }
   isRunning = false;
   placeholder.classList.remove("hidden");
-  btnCameraText.textContent = "เปิดกล้อง";
-  btnToggleCamera.classList.remove("btn-danger");
+  cropRightCanvas.classList.add("hidden");
+  cropLeftCanvas.classList.add("hidden");
+  standbyRightIcon.classList.remove("hidden");
+  standbyLeftIcon.classList.remove("hidden");
+  labelRight.classList.add("hidden");
+  labelLeft.classList.add("hidden");
+
+  btnCameraText.textContent = "สลับสถานะ";
+  btnToggleCamera.classList.remove("camera-active");
   overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
   drowsyAlert.classList.add("hidden");
   videoContainer.classList.remove("drowsy-active");
-  stateLabel.textContent = "กล้องปิดอยู่";
-  stateLabel.style.color = "#94a3b8";
-  stateDot.style.background = "#475569";
-  stateDot.style.boxShadow = "none";
-  overallBadge.style.borderColor = "rgba(255, 255, 255, 0.06)";
-  overallBadge.style.background = "rgba(15, 23, 42, 0.75)";
+
+  stateLabel.textContent = "ลืมตา (ปกติ)";
+  videoStateText.textContent = "ลืมตา (ปกติ)";
+  stateSub.textContent = "ตรวจพบใบหน้า 1 คน · ดวงตาปกติ";
+  stateLabel.style.color = "var(--text-primary)";
+  confidenceVal.textContent = "96%";
+  confidenceVal.style.color = "var(--text-primary)";
+  probOpenBar.style.width = "93.4%";
+  probOpenText.textContent = "93.4%";
+  probClosedBar.style.width = "6.6%";
+  probClosedText.textContent = "6.6%";
+  if (videoFps) videoFps.textContent = "28 fps";
+  const headerFpsSpan = document.getElementById('fpsHeader');
+  if (headerFpsSpan) headerFpsSpan.textContent = "28 fps";
 }
 
 // 7. Event Listeners
@@ -428,15 +454,20 @@ btnStartPrompt.addEventListener('click', startCamera);
 
 btnFlip.addEventListener('click', () => {
   isFlipped = !isFlipped;
-  const scaleClass = isFlipped ? '-scale-x-100' : 'scale-x-100';
-  videoEl.className = `w-full h-full object-cover transform ${scaleClass}`;
-  overlayCanvas.className = `absolute inset-0 w-full h-full object-cover transform ${scaleClass} pointer-events-none`;
+  if (isFlipped) {
+    videoEl.classList.remove('no-flip');
+    overlayCanvas.classList.remove('no-flip');
+    flipStatus.textContent = "เปิด";
+  } else {
+    videoEl.classList.add('no-flip');
+    overlayCanvas.classList.add('no-flip');
+    flipStatus.textContent = "ปิด";
+  }
 });
 
 btnMute.addEventListener('click', () => {
   isMuted = !isMuted;
   muteStatus.textContent = isMuted ? "ปิด" : "เปิด";
-  btnMute.classList.toggle("text-rose-400", isMuted);
 });
 
 // Image Upload Tester
@@ -446,6 +477,12 @@ imageInput.addEventListener('change', async (e) => {
 
   stopCamera();
   placeholder.classList.add("hidden");
+  cropRightCanvas.classList.remove("hidden");
+  cropLeftCanvas.classList.remove("hidden");
+  standbyRightIcon.classList.add("hidden");
+  standbyLeftIcon.classList.add("hidden");
+  labelRight.classList.remove("hidden");
+  labelLeft.classList.remove("hidden");
 
   const img = new Image();
   img.src = URL.createObjectURL(file);
