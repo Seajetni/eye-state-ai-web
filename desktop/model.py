@@ -1,13 +1,15 @@
 import torch
 import torch.nn as nn
 
+EYE_CLASSES = ("closed", "open")
+
 class EyeCNN(nn.Module):
     """
     Convolutional Neural Network for Open vs Closed Eyes Classification.
     Input shape: (batch_size, 3, 64, 64)
     Output shape: (batch_size, 2) -> [logits_closed, logits_open]
     """
-    def __init__(self, num_classes=2):
+    def __init__(self, num_classes=len(EYE_CLASSES)):
         super(EyeCNN, self).__init__()
         
         # Block 1: 64x64 -> 32x32
@@ -53,7 +55,7 @@ class EyeCNN(nn.Module):
         logits = self.classifier(x)
         return logits
 
-def get_model(num_classes=2):
+def get_model(num_classes=len(EYE_CLASSES)):
     return EyeCNN(num_classes=num_classes)
 
 if __name__ == "__main__":

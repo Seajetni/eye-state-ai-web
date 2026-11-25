@@ -1,6 +1,5 @@
 import argparse
-import os
-import sys
+import shutil
 import time
 from pathlib import Path
 import torch
@@ -11,7 +10,7 @@ import onnx
 import onnxruntime as ort
 import numpy as np
 
-from model import EyeCNN
+from model import EYE_CLASSES, EyeCNN
 from prepare_data import prepare_dataset
 
 def get_safe_device():
@@ -34,11 +33,10 @@ def get_safe_device():
 def export_to_onnx(model, onnx_path, input_shape=(1, 3, 64, 64)):
     """Exports PyTorch model to ONNX and verifies it."""
     print(f"\n[ONNX] Exporting trained model to {onnx_path}...")
-    model.eval()
     dummy_input = torch.randn(*input_shape, device="cpu")
     
     # Send model copy to CPU for safe export
-    cpu_model = EyeCNN(num_classes=2)
+    cpu_model = EyeCNN()
     cpu_model.load_state_dict(model.state_dict())
     cpu_model.eval()
 
@@ -67,6 +65,9 @@ def export_to_onnx(model, onnx_path, input_shape=(1, 3, 64, 64)):
     session = ort.InferenceSession(onnx_path, providers=["CPUExecutionProvider"])
     ort_inputs = {session.get_inputs()[0].name: dummy_input.numpy()}
     ort_outs = session.run(None, ort_inputs)
+    with torch.no_grad():
+        expected_logits = cpu_model(dummy_input).numpy()
+    np.testing.assert_allclose(ort_outs[0], expected_logits, rtol=1e-4, atol=1e-5)
     print(f"[ONNX] Test inference with ONNX Runtime passed! Output shape: {ort_outs[0].shape}")
 
 def train():
@@ -76,6 +77,8 @@ def train():
     parser.add_argument("--epochs", "-e", type=int, default=10,
                         help="Number of epochs to train (default: 10)")
     args = parser.parse_args()
+    if args.epochs < 1:
+        parser.error("--epochs must be at least 1")
 
     project_dir = Path(__file__).resolve().parent.parent
     desktop_dir = Path(__file__).resolve().parent
@@ -114,6 +117,14 @@ def train():
     train_dataset = datasets.ImageFolder(root=str(data_dir / "train"), transform=train_transforms)
     val_dataset = datasets.ImageFolder(root=str(data_dir / "val"), transform=val_transforms)
 
+    expected_mapping = {name: index for index, name in enumerate(EYE_CLASSES)}
+    for split, dataset in (("train", train_dataset), ("val", val_dataset)):
+        if dataset.class_to_idx != expected_mapping:
+            raise ValueError(
+                f"{split}: expected class mapping {expected_mapping}, "
+                f"got {dataset.class_to_idx}"
+            )
+
     batch_size = 32
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
@@ -131,7 +142,7 @@ def train():
     num_epochs = args.epochs
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs, eta_min=1e-5)
 
-    best_val_acc = 0.0
+    best_val_acc = float("-inf")
     best_weights_path = models_dir / "best_model.pth"
     onnx_path = models_dir / "eye_cnn.onnx"
     web_onnx_path = web_models_dir / "eye_cnn.onnx"
@@ -209,7 +220,6 @@ def train():
     # Load best weights before ONNX export
     model.load_state_dict(torch.load(best_weights_path, map_location="cpu"))
     export_to_onnx(model, str(onnx_path))
-    import shutil
     shutil.copyfile(str(onnx_path), str(web_onnx_path))
     print(f"[ONNX] Synced to web assets: {web_onnx_path.resolve()}")
 
